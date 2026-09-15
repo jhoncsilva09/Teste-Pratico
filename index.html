@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,26 +8,160 @@
 	<title>Teste Prático | Gestão de avaliações</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
+	<link
+		href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap"
+		rel="stylesheet" />
 	<link rel="stylesheet" href="styles.css" />
 	<script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
 	<section id="loginView" class="login-shell">
-		<div class="login-visual"><div class="brand"><span class="brand-mark">TP</span> Teste Prático</div><div class="visual-copy"><h1>Clareza para cada aprovação.</h1><p>Organize testes práticos, acompanhe resultados e tome decisões com uma visão simples e confiável.</p></div><div class="visual-stamp"><i data-lucide="shield-check" width="16"></i> Ambiente de gestão seguro</div></div>
-		<div class="login-panel"><form id="loginForm" class="login-card"><h2>Bem-vindo de volta</h2><p>Acesse seu painel para continuar.</p><div class="field"><label for="loginEmail">E-mail</label><input id="loginEmail" type="email" placeholder="seu@email.com" required /></div><div class="field"><label for="loginPassword">Senha</label><input id="loginPassword" type="password" placeholder="Digite sua senha" required /></div><button class="primary full" type="submit">Entrar no painel <i data-lucide="arrow-right" width="16"></i></button><div class="login-note"><i data-lucide="info" width="15"></i><span>Modo demonstração: use <b>admin@teste.com</b> e <b>teste123</b>. Configure o Supabase no código para autenticação em produção.</span></div></form></div>
+		<div class="login-visual">
+			<div class="brand"><span class="brand-mark">TP</span> Teste Prático</div>
+			<div class="visual-copy">
+				<h1>Clareza para cada aprovação.</h1>
+				<p>Organize testes práticos, acompanhe resultados e tome decisões com uma visão simples e confiável.</p>
+			</div>
+			<div class="visual-stamp"><i data-lucide="shield-check" width="16"></i> Ambiente de gestão seguro</div>
+		</div>
+		<div class="login-panel">
+			<form id="loginForm" class="login-card">
+				<h2>Bem-vindo de volta</h2>
+				<p>Acesse seu painel para continuar.</p>
+				<div class="field"><label for="loginEmail">E-mail</label><input id="loginEmail" type="email"
+						placeholder="seu@email.com" required /></div>
+				<div class="field"><label for="loginPassword">Senha</label><input id="loginPassword" type="password"
+						placeholder="Digite sua senha" required /></div><button class="primary full"
+					type="submit">Entrar no painel <i data-lucide="arrow-right" width="16"></i></button>
+				<div class="login-note"><i data-lucide="info" width="15"></i><span>Modo demonstração: use
+						<b>admin@teste.com</b> e <b>teste123</b>. Configure o Supabase no código para autenticação em
+						produção.</span></div>
+			</form>
+		</div>
 	</section>
 
 	<section id="appView" class="app hidden">
-		<aside id="sidebar" class="sidebar"><div class="brand"><span class="brand-mark">TP</span> Teste Prático</div><div class="nav-label">Workspace</div><nav class="nav"><button class="active" data-view="records"><i data-lucide="layout-list" width="18"></i> Alunos</button><button data-view="stats"><i data-lucide="chart-no-axes-combined" width="18"></i> Estatísticas</button></nav><div class="sidebar-footer"><span>Fuso horário</span><div class="account"><span class="avatar">AD</span><span>Administrador<br><small>Brasília (GMT-3)</small></span></div><button id="logoutBtn" class="icon-btn" title="Sair" style="margin-top:18px"><i data-lucide="log-out" width="16"></i> Sair</button></div></aside>
-		<main class="main"><header class="topbar"><button id="menuBtn" class="mobile-menu"><i data-lucide="menu"></i></button><h1 id="topTitle">Alunos</h1><div class="date-chip"><i data-lucide="calendar-days" width="15"></i><span id="todayLabel"></span></div></header>
-			<div class="content"><div id="recordsView"><div class="page-heading"><div><div class="eyebrow">Visão geral</div><h2>Lista de alunos</h2><p>Cadastre e acompanhe o desempenho dos seus alunos.</p></div><button id="newBtn" class="primary"><i data-lucide="plus" width="16"></i> Novo cadastro</button></div><div id="quickStats" class="stats-strip"></div><div class="list-panel"><div class="toolbar"><div class="search"><i data-lucide="search"></i><input id="searchInput" placeholder="Buscar por nome..." /></div><select id="reasonFilter"><option value="">Todos os motivos</option><option value="TESTE">Teste</option><option value="RETESTE">Reteste</option></select><select id="resultFilter"><option value="">Todas avaliações</option><option value="APROVADO">Aprovado</option><option value="REPROVADO">Reprovado</option><option value="PENDENTE">Pendente</option></select></div><div class="table-wrap"><table><thead><tr><th><button data-sort="date">Data <i data-lucide="arrow-up-down" width="13"></i></button></th><th><button data-sort="name">Nome <i data-lucide="arrow-up-down" width="13"></i></button></th><th><button data-sort="reason">Motivo <i data-lucide="arrow-up-down" width="13"></i></button></th><th><button data-sort="result">Avaliação <i data-lucide="arrow-up-down" width="13"></i></button></th><th></th></tr></thead><tbody id="recordsBody"></tbody></table></div></div></div>
-				<div id="statsView" class="hidden"><div class="page-heading"><div><div class="eyebrow">Indicadores</div><h2>Estatísticas</h2><p>Entenda o desempenho dos testes realizados.</p></div><div class="period"><select id="yearFilter"></select><select id="monthFilter"><option value="">Todos os meses</option><option value="01">Janeiro</option><option value="02">Fevereiro</option><option value="03">Março</option><option value="04">Abril</option><option value="05">Maio</option><option value="06">Junho</option><option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select></div></div><div id="statsGrid" class="stats-grid"></div></div>
-			</div></main>
-		</section>
-	<div id="modalBackdrop" class="modal-backdrop hidden"><form id="studentForm" class="modal"><div class="modal-head"><div><h2 id="modalTitle">Novo cadastro</h2><p class="modal-sub">Preencha os dados do aluno.</p></div><button type="button" class="icon-btn" id="closeModal"><i data-lucide="x"></i></button></div><div class="form-grid"><div class="field"><label for="studentDate">Data</label><input id="studentDate" type="date" required /></div><div class="field"><label for="studentName">Nome completo</label><input id="studentName" placeholder="Nome do aluno" required /></div><div class="field"><label for="studentReason">Motivo</label><select id="studentReason" required><option value="TESTE">Teste</option><option value="RETESTE">Reteste</option></select></div><div class="field"><label for="studentResult">Avaliação</label><select id="studentResult"><option value="PENDENTE">Aguardando avaliação</option><option value="APROVADO">Aprovado</option><option value="REPROVADO">Reprovado</option></select></div></div><div class="modal-actions"><button type="button" class="secondary" id="cancelModal">Cancelar</button><button class="primary" type="submit">Salvar cadastro</button></div></form></div>
+		<aside id="sidebar" class="sidebar">
+			<div class="brand"><span class="brand-mark">TP</span> Teste Prático</div>
+			<div class="nav-label">Workspace</div>
+			<nav class="nav"><button class="active" data-view="records"><i data-lucide="layout-list" width="18"></i>
+					Alunos</button><button data-view="stats"><i data-lucide="chart-no-axes-combined" width="18"></i>
+					Estatísticas</button></nav>
+			<div class="sidebar-footer"><span>Fuso horário</span>
+				<div class="account"><span class="avatar">AD</span><span>Administrador<br><small>Brasília
+							(GMT-3)</small></span></div><button id="logoutBtn" class="icon-btn" title="Sair"
+					style="margin-top:18px"><i data-lucide="log-out" width="16"></i> Sair</button>
+			</div>
+		</aside>
+		<main class="main">
+			<header class="topbar"><button id="menuBtn" class="mobile-menu"><i data-lucide="menu"></i></button>
+				<h1 id="topTitle">Alunos</h1>
+				<div class="date-chip"><i data-lucide="calendar-days" width="15"></i><span id="todayLabel"></span></div>
+			</header>
+			<div class="content">
+				<div id="recordsView">
+					<div class="page-heading">
+						<div>
+							<div class="eyebrow">Visão geral</div>
+							<h2>Lista de alunos</h2>
+							<p>Cadastre e acompanhe o desempenho dos seus alunos.</p>
+						</div><button id="newBtn" class="primary"><i data-lucide="plus" width="16"></i> Novo
+							cadastro</button>
+					</div>
+					<div id="quickStats" class="stats-strip"></div>
+					<div class="list-panel">
+						<div class="toolbar">
+							<div class="search"><i data-lucide="search"></i><input id="searchInput"
+									placeholder="Buscar por nome..." /></div><select id="reasonFilter">
+								<option value="">Todos os motivos</option>
+								<option value="TESTE">Teste</option>
+								<option value="RETESTE">Reteste</option>
+							</select><select id="resultFilter">
+								<option value="">Todas avaliações</option>
+								<option value="APROVADO">Aprovado</option>
+								<option value="REPROVADO">Reprovado</option>
+								<option value="PENDENTE">Pendente</option>
+							</select>
+						</div>
+						<div class="table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th><button data-sort="date">Data <i data-lucide="arrow-up-down"
+													width="13"></i></button></th>
+										<th><button data-sort="name">Nome <i data-lucide="arrow-up-down"
+													width="13"></i></button></th>
+										<th><button data-sort="reason">Motivo <i data-lucide="arrow-up-down"
+													width="13"></i></button></th>
+										<th><button data-sort="result">Avaliação <i data-lucide="arrow-up-down"
+													width="13"></i></button></th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody id="recordsBody"></tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+				<div id="statsView" class="hidden">
+					<div class="page-heading">
+						<div>
+							<div class="eyebrow">Indicadores</div>
+							<h2>Estatísticas</h2>
+							<p>Entenda o desempenho dos testes realizados.</p>
+						</div>
+						<div class="period"><select id="yearFilter"></select><select id="monthFilter">
+								<option value="">Todos os meses</option>
+								<option value="01">Janeiro</option>
+								<option value="02">Fevereiro</option>
+								<option value="03">Março</option>
+								<option value="04">Abril</option>
+								<option value="05">Maio</option>
+								<option value="06">Junho</option>
+								<option value="07">Julho</option>
+								<option value="08">Agosto</option>
+								<option value="09">Setembro</option>
+								<option value="10">Outubro</option>
+								<option value="11">Novembro</option>
+								<option value="12">Dezembro</option>
+							</select></div>
+					</div>
+					<div id="statsGrid" class="stats-grid"></div>
+				</div>
+			</div>
+		</main>
+	</section>
+	<div id="modalBackdrop" class="modal-backdrop hidden">
+		<form id="studentForm" class="modal">
+			<div class="modal-head">
+				<div>
+					<h2 id="modalTitle">Novo cadastro</h2>
+					<p class="modal-sub">Preencha os dados do aluno.</p>
+				</div><button type="button" class="icon-btn" id="closeModal"><i data-lucide="x"></i></button>
+			</div>
+			<div class="form-grid">
+				<div class="field"><label for="studentDate">Data</label><input id="studentDate" type="date" required />
+				</div>
+				<div class="field"><label for="studentName">Nome completo</label><input id="studentName"
+						placeholder="Nome do aluno" required /></div>
+				<div class="field"><label for="studentReason">Motivo</label><select id="studentReason" required>
+						<option value="TESTE">Teste</option>
+						<option value="RETESTE">Reteste</option>
+					</select></div>
+				<div class="field"><label for="studentResult">Avaliação</label><select id="studentResult">
+						<option value="PENDENTE">Aguardando avaliação</option>
+						<option value="APROVADO">Aprovado</option>
+						<option value="REPROVADO">Reprovado</option>
+					</select></div>
+			</div>
+			<div class="modal-actions"><button type="button" class="secondary" id="cancelModal">Cancelar</button><button
+					class="primary" type="submit">Salvar cadastro</button></div>
+		</form>
+	</div>
 	<div id="toast" class="toast hidden"></div>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="app.js"></script>
 </body>
+
 </html>
