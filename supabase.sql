@@ -61,3 +61,48 @@ drop trigger if exists protect_student_owner on public.students;
 create trigger protect_student_owner
 before update on public.students
 for each row execute function public.prevent_student_owner_change();
+
+-- Importação de CSV: importe primeiro o arquivo nesta tabela de staging.
+-- As colunas são text e aceitam células vazias durante a importação.
+create table if not exists public.students_import (
+  date text,
+  name text,
+  reason text,
+  result text
+);
+
+-- Depois de importar o CSV, execute:
+-- select public.import_students('UUID_DO_USUARIO');
+-- Linhas inválidas não são inseridas e podem ser conferidas na consulta abaixo.
+create or replace function public.import_students(import_user_id uuid)
+returns integer
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  imported_count integer;
+begin
+  insert into public.students (user_id, date, name, reason, result)
+  select
+    import_user_id,
+    coalesce(nullif(trim(date), ''), current_date::text)::date,
+    trim(name),
+    coalesce(nullif(upper(trim(reason)), ''), 'TESTE'),
+    coalesce(nullif(upper(trim(result)), ''), 'PENDENTE')
+  from public.students_import
+  where char_length(trim(name)) >= 2
+    and coalesce(nullif(upper(trim(reason)), ''), 'TESTE') in ('TESTE', 'RETESTE')
+    and coalesce(nullif(upper(trim(result)), ''), 'PENDENTE') in ('PENDENTE', 'APROVADO', 'REPROVADO');
+
+  get diagnostics imported_count = row_count;
+  return imported_count;
+end;
+$$;
+
+-- Confira as linhas que precisam de correção antes de repetir a importação.
+select *
+from public.students_import
+where nullif(trim(name), '') is null
+   or coalesce(nullif(upper(trim(reason)), ''), 'TESTE') not in ('TESTE', 'RETESTE')
+   or coalesce(nullif(upper(trim(result)), ''), 'PENDENTE') not in ('PENDENTE', 'APROVADO', 'REPROVADO');
