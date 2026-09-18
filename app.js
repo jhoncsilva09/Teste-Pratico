@@ -32,7 +32,24 @@ function openModal(id = null) { editingId = id; const item = students.find(x => 
 function closeModal() { $('modalBackdrop').classList.add('hidden'); }
 function setView(view) { currentView = view; $('recordsView').classList.toggle('hidden', view !== 'records'); $('statsView').classList.toggle('hidden', view !== 'stats'); $('topTitle').textContent = view === 'records' ? 'Alunos' : 'Estatísticas'; document.querySelectorAll('.nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view)); if (view === 'stats') renderStats(); $('sidebar').classList.remove('open'); }
 function populateYearFilter() { const years = [...new Set([new Date().getFullYear(), ...students.map(x => Number(x.date.slice(0, 4)))])].sort((a, b) => b - a); const selectedYear = $('yearFilter').value; $('yearFilter').innerHTML = '<option value="">Todos os anos</option>' + years.map(year => `<option value="${year}">${year}</option>`).join(''); $('yearFilter').value = years.includes(Number(selectedYear)) ? selectedYear : ''; }
-async function loadRemoteStudents() { if (!supabaseClient) return; const { data, error } = await supabaseClient.from('students').select('id,date,name,reason,result').order('date', { ascending: false }); if (error) { toast('Não foi possível carregar os cadastros'); return; } students = data || []; populateYearFilter(); save(); }
+async function loadRemoteStudents() {
+	if (!supabaseClient) return;
+	const pageSize = 1000;
+	const allStudents = [];
+	let offset = 0;
+
+	while (true) {
+		const { data, error } = await supabaseClient.from('students').select('id,date,name,reason,result').order('date', { ascending: false }).range(offset, offset + pageSize - 1);
+		if (error) { toast('Não foi possível carregar os cadastros'); return; }
+		allStudents.push(...(data || []));
+		if (!data || data.length < pageSize) break;
+		offset += pageSize;
+	}
+
+	students = allStudents;
+	populateYearFilter();
+	save();
+}
 async function saveRemoteStudent(data) { if (!supabaseClient) return; const { error } = await supabaseClient.from('students').upsert(data); if (error) toast('Salvo localmente; verifique a tabela students no Supabase'); }
 async function deleteStudent(id) {
 	const student = students.find(item => item.id === id);
