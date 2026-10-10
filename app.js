@@ -1,7 +1,17 @@
-// Preencha estes valores para ativar Supabase Auth e a tabela public.students.
-const SUPABASE_URL = 'https://ynvecjvjstukibbxauya.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_XOe920eAOAbp1PpuuzVnGg_dfiiAJZ-';
-const supabaseClient = SUPABASE_URL && SUPABASE_ANON_KEY ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+// Copie estes valores de Configurações do projeto > Seus apps > Configuração do SDK.
+const firebaseConfig = {
+	apiKey: 'AIzaSyC7r9PRMtObvBxPgbox6mVOyUsM6urBetA',
+	authDomain: 'teste-pratico-de193.firebaseapp.com',
+	projectId: 'teste-pratico-de193',
+	storageBucket: 'teste-pratico-de193.firebasestorage.app',
+	messagingSenderId: '422344335065',
+	appId: '1:422344335065:web:5b1e0c441942f0f2b728c8',
+	measurementId: 'G-7YWYY8JGXQ'
+};
+const firebaseConfigured = Object.values(firebaseConfig).every(value => value && !value.startsWith('COLE_AQUI'));
+const firebaseApp = firebaseConfigured ? firebase.initializeApp(firebaseConfig) : null;
+const firebaseAuth = firebaseApp ? firebase.auth() : null;
+const studentsCollection = firebaseApp ? firebaseApp.firestore().collection('students') : null;
 const STORAGE_KEY = 'teste-pratico-students';
 let students = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || [
 	{ id: '1', date: '2026-09-03', name: 'Mariana Costa', reason: 'TESTE', result: 'APROVADO' }, { id: '2', date: '2026-09-04', name: 'Rafael Mendes', reason: 'TESTE', result: 'REPROVADO' }, { id: '3', date: '2026-09-05', name: 'Beatriz Lima', reason: 'RETESTE', result: 'APROVADO' }, { id: '4', date: '2026-09-06', name: 'Lucas Andrade', reason: 'TESTE', result: 'PENDENTE' }, { id: '5', date: '2026-09-09', name: 'Camila Rocha', reason: 'RETESTE', result: 'APROVADO' }
@@ -33,42 +43,207 @@ function closeModal() { $('modalBackdrop').classList.add('hidden'); }
 function setView(view) { currentView = view; $('recordsView').classList.toggle('hidden', view !== 'records'); $('statsView').classList.toggle('hidden', view !== 'stats'); $('topTitle').textContent = view === 'records' ? 'Alunos' : 'Estatísticas'; document.querySelectorAll('.nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view)); if (view === 'stats') renderStats(); $('sidebar').classList.remove('open'); }
 function populateYearFilter() { const years = [...new Set([new Date().getFullYear(), ...students.map(x => Number(x.date.slice(0, 4)))])].sort((a, b) => b - a); const selectedYear = $('yearFilter').value; $('yearFilter').innerHTML = '<option value="">Todos os anos</option>' + years.map(year => `<option value="${year}">${year}</option>`).join(''); $('yearFilter').value = years.includes(Number(selectedYear)) ? selectedYear : ''; }
 async function loadRemoteStudents() {
-	if (!supabaseClient) return;
-	const pageSize = 1000;
-	const allStudents = [];
-	let offset = 0;
-
-	while (true) {
-		const { data, error } = await supabaseClient.from('students').select('id,date,name,reason,result').order('date', { ascending: false }).range(offset, offset + pageSize - 1);
-		if (error) { toast('Não foi possível carregar os cadastros'); return; }
-		allStudents.push(...(data || []));
-		if (!data || data.length < pageSize) break;
-		offset += pageSize;
-	}
-
-	students = allStudents;
+	const snapshot = await studentsCollection.where('userId', '==', firebaseAuth.currentUser.uid).get();
+	students = snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
 	populateYearFilter();
 	save();
 }
-async function saveRemoteStudent(data) { if (!supabaseClient) return; const { error } = await supabaseClient.from('students').upsert(data); if (error) toast('Salvo localmente; verifique a tabela students no Supabase'); }
+function parseCsv(text) {
+	const rows = [];
+	let row = [];
+	let cell = '';
+	let quoted = false;
+	for (let index = 0; index < text.length; index++) {
+		const character = text[index];
+		if (quoted) {
+			if (character === '"' && text[index + 1] === '"') {
+				cell += '"';
+				index++;
+			} else if (character === '"') {
+				quoted = false;
+			} else {
+				cell += character;
+			}
+		} else if (character === '"' && cell.length === 0) {
+			quoted = true;
+		} else if (character === ',') {
+			row.push(cell);
+			cell = '';
+		} else if (character === '\n' || character === '\r') {
+			row.push(cell);
+			if (row.some(value => value.trim())) rows.push(row);
+			row = [];
+			cell = '';
+			if (character === '\r' && text[index + 1] === '\n') index++;
+		} else {
+			cell += character;
+		}
+	}
+	if (quoted) throw new Error('O CSV contém um campo entre aspas que não foi fechado.');
+	row.push(cell);
+	if (row.some(value => value.trim())) rows.push(row);
+	if (rows.length < 2) throw new Error('O CSV está vazio ou contém apenas o cabeçalho.');
+
+	const headers = rows.shift().map(value => value.trim().replace(/^\uFEFF/, '').toLowerCase());
+	const required = ['id', 'date', 'name', 'reason', 'result'];
+	const missing = required.filter(header => !headers.includes(header));
+	if (missing.length) throw new Error(`Colunas obrigatórias ausentes: ${missing.join(', ')}.`);
+	const column = Object.fromEntries(headers.map((header, index) => [header, index]));
+	const ids = new Set();
+	const owners = new Set();
+	const imported = rows.map((values, index) => {
+		const line = index + 2;
+		const value = header => (values[column[header]] || '').trim();
+		const id = value('id').toLowerCase();
+		const date = value('date');
+		const name = value('name');
+		const reason = value('reason').toUpperCase();
+		const result = value('result').toUpperCase();
+		const owner = column.user_id === undefined ? '' : value('user_id');
+		if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) {
+			throw new Error(`Linha ${line}: identificador inválido; exporte a coluna id do Supabase.`);
+		}
+		if (ids.has(id)) throw new Error(`Linha ${line}: o identificador ${id} aparece mais de uma vez no CSV.`);
+		ids.add(id);
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) !== date) {
+			throw new Error(`Linha ${line}: data inválida; use o formato AAAA-MM-DD.`);
+		}
+		if (name.length < 2) throw new Error(`Linha ${line}: nome inválido.`);
+		if (!['TESTE', 'RETESTE'].includes(reason)) throw new Error(`Linha ${line}: motivo inválido.`);
+		if (!['PENDENTE', 'APROVADO', 'REPROVADO'].includes(result)) throw new Error(`Linha ${line}: avaliação inválida.`);
+		if (owner) owners.add(owner);
+		return { id, date, name, reason, result };
+	});
+	if (owners.size > 1) {
+		throw new Error('O arquivo contém dados de mais de um usuário do Supabase. Exporte um usuário por vez.');
+	}
+	return imported;
+}
+async function importSupabaseCsv(file) {
+	const imported = parseCsv(await file.text());
+	const confirmed = window.confirm(
+		`${imported.length} registros serão importados para a conta Firebase atual. ` +
+		'Os IDs do Supabase serão preservados; se um documento com o mesmo ID já existir, ele será atualizado. Continuar?'
+	);
+	if (!confirmed) return;
+	const button = $('importStudentsBtn');
+	button.disabled = true;
+	try {
+		const userId = firebaseAuth.currentUser.uid;
+		for (let start = 0; start < imported.length; start += 450) {
+			const batch = firebaseApp.firestore().batch();
+			imported.slice(start, start + 450).forEach(student => {
+				const { id, ...studentData } = student;
+				batch.set(studentsCollection.doc(id), { ...studentData, userId });
+			});
+			await batch.commit();
+		}
+		await loadRemoteStudents();
+		renderRecords();
+		if (currentView === 'stats') renderStats();
+		toast(`${imported.length} registros importados com sucesso`);
+	} finally {
+		button.disabled = false;
+	}
+}
+async function saveRemoteStudent(data) {
+	const studentData = {
+		date: data.date,
+		name: data.name,
+		reason: data.reason,
+		result: data.result,
+		userId: firebaseAuth.currentUser.uid
+	};
+	if (!data.createdAt) studentData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+	await studentsCollection.doc(data.id).set(studentData, { merge: true });
+}
 async function deleteStudent(id) {
 	const student = students.find(item => item.id === id);
 	if (!student) return;
 	const confirmed = window.confirm(`Deseja excluir o cadastro de ${student.name}?`);
 	if (!confirmed) return;
-	students = students.filter(item => item.id !== id);
-	save();
-	if (supabaseClient) {
-		const { error } = await supabaseClient.from('students').delete().eq('id', id);
-		if (error) toast('Cadastro removido localmente; verifique a tabela students no Supabase');
+	try {
+		await studentsCollection.doc(id).delete();
+		students = students.filter(item => item.id !== id);
+		save();
+	} catch (error) {
+		console.error('Erro ao excluir cadastro no Firestore:', error);
+		toast('Não foi possível excluir o cadastro no Firebase');
+		return;
 	}
 	renderRecords();
 	if (currentView === 'stats') renderStats();
 	toast('Cadastro excluído com sucesso');
 }
-$('loginForm').onsubmit = async event => { event.preventDefault(); const email = $('loginEmail').value; const password = $('loginPassword').value; let valid = email === 'admin@teste.com' && password === 'teste123'; if (supabaseClient) { const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); valid = !error; if (error) toast('E-mail ou senha inválidos'); if (valid) await loadRemoteStudents(); } if (valid) { $('loginView').classList.add('hidden'); $('appView').classList.remove('hidden'); renderRecords(); toast('Login realizado com sucesso'); } else if (!supabaseClient) toast('E-mail ou senha inválidos'); };
-$('logoutBtn').onclick = () => { $('appView').classList.add('hidden'); $('loginView').classList.remove('hidden'); };
+$('loginForm').onsubmit = async event => {
+	event.preventDefault();
+	if (!firebaseAuth || !studentsCollection) {
+		toast('Configure os dados do Firebase no arquivo app.js');
+		return;
+	}
+	try {
+		await firebaseAuth.signInWithEmailAndPassword($('loginEmail').value, $('loginPassword').value);
+		await loadRemoteStudents();
+		$('loginView').classList.add('hidden');
+		$('appView').classList.remove('hidden');
+		renderRecords();
+		toast('Login realizado com sucesso');
+	} catch (error) {
+		console.error('Erro ao entrar ou carregar cadastros do Firebase:', error);
+		toast(error.code && error.code.startsWith('auth/') ? 'E-mail ou senha inválidos' : 'Não foi possível carregar os dados do Firebase');
+	}
+};
+$('logoutBtn').onclick = async () => {
+	try {
+		await firebaseAuth.signOut();
+		students = [];
+		save();
+		$('appView').classList.add('hidden');
+		$('loginView').classList.remove('hidden');
+	} catch (error) {
+		console.error('Erro ao sair do Firebase:', error);
+		toast('Não foi possível encerrar a sessão');
+	}
+};
 $('newBtn').onclick = () => openModal(); $('closeModal').onclick = closeModal; $('cancelModal').onclick = closeModal; $('modalBackdrop').onclick = e => { if (e.target === $('modalBackdrop')) closeModal(); };
-$('studentForm').onsubmit = async e => { e.preventDefault(); const data = { date: $('studentDate').value, name: $('studentName').value.trim(), reason: $('studentReason').value, result: $('studentResult').value }; if (editingId) { data.id = editingId; students = students.map(x => x.id === editingId ? { ...x, ...data } : x); } else { data.id = crypto.randomUUID(); students.push(data); } save(); await saveRemoteStudent(data); closeModal(); renderRecords(); if (currentView === 'stats') renderStats(); toast(editingId ? 'Cadastro atualizado' : 'Cadastro salvo com sucesso'); };
+$('importStudentsBtn').onclick = () => $('studentsCsvInput').click();
+$('studentsCsvInput').onchange = async event => {
+	const [file] = event.target.files;
+	event.target.value = '';
+	if (!file) return;
+	try {
+		await importSupabaseCsv(file);
+	} catch (error) {
+		console.error('Erro ao importar CSV do Supabase para o Firestore:', error);
+		toast(error.message || 'Não foi possível importar o arquivo CSV');
+	}
+};
+$('studentForm').onsubmit = async e => {
+	e.preventDefault();
+	const isEditing = Boolean(editingId);
+	const existingStudent = isEditing ? students.find(item => item.id === editingId) : null;
+	const data = {
+		id: editingId || crypto.randomUUID(),
+		date: $('studentDate').value,
+		name: $('studentName').value.trim(),
+		reason: $('studentReason').value,
+		result: $('studentResult').value
+	};
+	if (existingStudent && existingStudent.createdAt) data.createdAt = existingStudent.createdAt;
+	try {
+		await saveRemoteStudent(data);
+		students = isEditing
+			? students.map(item => item.id === editingId ? { ...item, ...data } : item)
+			: [...students, data];
+		save();
+		closeModal();
+		renderRecords();
+		if (currentView === 'stats') renderStats();
+		toast(isEditing ? 'Cadastro atualizado' : 'Cadastro salvo com sucesso');
+	} catch (error) {
+		console.error('Erro ao salvar cadastro no Firestore:', error);
+		toast('Não foi possível salvar o cadastro no Firebase');
+	}
+};
 document.querySelectorAll('[data-sort]').forEach(button => button.onclick = () => { const key = button.dataset.sort; sortDirection = sortKey === key ? sortDirection * -1 : -1; sortKey = key; renderRecords(); });['searchInput', 'reasonFilter', 'resultFilter'].forEach(id => $(id).oninput = renderRecords); document.querySelectorAll('.nav button').forEach(btn => btn.onclick = () => setView(btn.dataset.view)); $('menuBtn').onclick = () => $('sidebar').classList.toggle('open'); $('yearFilter').onchange = renderStats; $('monthFilter').onchange = renderStats;
 populateYearFilter(); $('todayLabel').textContent = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()); lucide.createIcons();
