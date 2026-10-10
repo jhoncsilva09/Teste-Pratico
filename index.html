@@ -34,9 +34,8 @@
 				<div class="field"><label for="loginPassword">Senha</label><input id="loginPassword" type="password"
 						placeholder="Digite sua senha" required /></div><button class="primary full"
 					type="submit">Entrar no painel <i data-lucide="arrow-right" width="16"></i></button>
-				<div class="login-note"><i data-lucide="info" width="15"></i><span>Modo demonstração: use
-						<b>admin@teste.com</b> e <b>teste123</b>. Configure o Supabase no código para autenticação em
-						produção.</span></div>
+				<div class="login-note"><i data-lucide="info" width="15"></i><span>Entre com o e-mail e a senha
+						cadastrados no Firebase Authentication.</span></div>
 			</form>
 		</div>
 	</section>
@@ -65,9 +64,13 @@
 						<div>
 							<div class="eyebrow">Visão geral</div>
 							<h2>Lista de alunos</h2>
-							<p>Cadastre e acompanhe o desempenho dos seus alunos.</p>
-						</div><button id="newBtn" class="primary"><i data-lucide="plus" width="16"></i> Novo
-							cadastro</button>
+							<p>Cadastre, acompanhe e importe os dados dos seus alunos.</p>
+						</div>
+						<div class="heading-actions">
+							<button id="importStudentsBtn" type="button" class="secondary"><i data-lucide="upload" width="16"></i> Importar CSV do Supabase</button>
+							<input id="studentsCsvInput" type="file" accept=".csv,text/csv" class="hidden" />
+							<button id="newBtn" class="primary"><i data-lucide="plus" width="16"></i> Novo cadastro</button>
+						</div>
 					</div>
 					<div id="quickStats" class="stats-strip"></div>
 					<div class="list-panel">
@@ -160,7 +163,9 @@
 		</form>
 	</div>
 	<div id="toast" class="toast hidden"></div>
-	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 	<script src="app.js"></script>
 </body>
 
