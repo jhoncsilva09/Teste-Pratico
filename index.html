@@ -146,8 +146,9 @@
 			<div class="form-grid">
 				<div class="field"><label for="studentDate">Data</label><input id="studentDate" type="date" required />
 				</div>
-				<div class="field"><label for="studentName">Nome completo</label><input id="studentName"
-						placeholder="Nome do aluno" required /></div>
+				<div class="field"><label for="studentName">Nome completo</label><select id="studentName" required>
+						<option value="" disabled selected>Selecione um aluno cadastrado</option>
+					</select><small id="studentNameStatus" class="student-name-status" aria-live="polite"></small></div>
 				<div class="field"><label for="studentReason">Motivo</label><select id="studentReason" required>
 						<option value="TESTE">Teste</option>
 						<option value="RETESTE">Reteste</option>
