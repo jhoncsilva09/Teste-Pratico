@@ -145,6 +145,15 @@ button {
     margin-bottom: 18px;
 }
 
+.student-name-status {
+    color: #748078;
+    font-size: 12px;
+}
+
+.student-name-status.error {
+    color: #ae4e49;
+}
+
 label {
     font-size: 12px;
     font-weight: 700;
@@ -322,6 +331,12 @@ select:focus {
     align-items: flex-end;
     gap: 20px;
     margin-bottom: 28px;
+}
+
+.heading-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .eyebrow {
@@ -861,6 +876,11 @@ tr:hover td {
 
     .page-heading .primary {
         width: 100%;
+    }
+
+    .heading-actions {
+        width: 100%;
+        flex-direction: column;
     }
 
     .stats-strip {
