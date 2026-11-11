@@ -8,15 +8,27 @@ const firebaseConfig = {
 	appId: '1:422344335065:web:5b1e0c441942f0f2b728c8',
 	measurementId: 'G-7YWYY8JGXQ'
 };
+const studentDirectoryConfig = {
+	apiKey: 'AIzaSyA2LF23-xbhuOhSc-zmkSTHUB5IhLkkNLs',
+	authDomain: 'controle-de-alunos-b1bc7.firebaseapp.com',
+	projectId: 'controle-de-alunos-b1bc7',
+	storageBucket: 'controle-de-alunos-b1bc7.firebasestorage.app',
+	messagingSenderId: '841074319963',
+	appId: '1:841074319963:web:e2e02dda91f08a4806d57e'
+};
 const firebaseConfigured = Object.values(firebaseConfig).every(value => value && !value.startsWith('COLE_AQUI'));
 const firebaseApp = firebaseConfigured ? firebase.initializeApp(firebaseConfig) : null;
 const firebaseAuth = firebaseApp ? firebase.auth() : null;
 const studentsCollection = firebaseApp ? firebaseApp.firestore().collection('students') : null;
+const studentDirectoryApp = firebase.initializeApp(studentDirectoryConfig, 'studentDirectory');
+const studentDirectoryAuth = studentDirectoryApp.auth();
+const studentDirectoryCollection = studentDirectoryApp.firestore().collection('students');
 const STORAGE_KEY = 'teste-pratico-students';
 let students = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || [
 	{ id: '1', date: '2026-09-03', name: 'Mariana Costa', reason: 'TESTE', result: 'APROVADO' }, { id: '2', date: '2026-09-04', name: 'Rafael Mendes', reason: 'TESTE', result: 'REPROVADO' }, { id: '3', date: '2026-09-05', name: 'Beatriz Lima', reason: 'RETESTE', result: 'APROVADO' }, { id: '4', date: '2026-09-06', name: 'Lucas Andrade', reason: 'TESTE', result: 'PENDENTE' }, { id: '5', date: '2026-09-09', name: 'Camila Rocha', reason: 'RETESTE', result: 'APROVADO' }
 ];
 let editingId = null; let sortKey = 'date'; let sortDirection = -1; let currentView = 'records';
+let studentDirectoryNames = [];
 const $ = id => document.getElementById(id);
 const esc = value => String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const formatDate = date => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${date}T12:00:00`)).replace('.', '');
@@ -38,7 +50,43 @@ function renderStats() {
 	$('statsGrid').innerHTML = `<div class="chart-card"><div class="card-title"><div><h3>Resultado por mês</h3><p>Comparativo de aprovados e reprovados</p></div></div><div class="bar-chart">${chart}</div><div class="legend"><span>Aprovados</span><span class="reject">Reprovados</span></div></div><div class="metrics-card"><div class="card-title"><div><h3>Resumo do período</h3><p>${filtered.length} registros encontrados</p></div></div>${metric('Total de alunos', filtered.length, 100, '')} ${metric('Testes realizados', tests.length, percent(tests.length, filtered.length), 'yellow')} ${metric('Aprovados', approved.length, percent(approved.length, evaluated.length), '')} ${metric('Reprovados', rejected.length, percent(rejected.length, evaluated.length), 'red')} ${metric('Teste + aprovado', testApproved.length, percent(testApproved.length, tests.filter(x => x.result !== 'PENDENTE').length), '')} ${metric('Teste + reprovado', testRejected.length, percent(testRejected.length, tests.filter(x => x.result !== 'PENDENTE').length), 'red')}</div>`;
 }
 const metric = (label, value, progress, color) => `<div class="metric-row"><div class="metric-top"><strong>${label}</strong><span>${value} <small>(${progress}%)</small></span></div><div class="progress"><i class="${color}" style="width:${progress}%"></i></div></div>`;
-function openModal(id = null) { editingId = id; const item = students.find(x => x.id === id); $('modalTitle').textContent = id ? 'Editar cadastro' : 'Novo cadastro'; $('studentDate').value = item?.date || today(); $('studentName').value = item?.name || ''; $('studentReason').value = item?.reason || 'TESTE'; $('studentResult').value = item?.result || 'PENDENTE'; $('modalBackdrop').classList.remove('hidden'); setTimeout(() => $('studentName').focus(), 50); }
+function renderStudentNameOptions(selectedName = '') {
+	const names = [...studentDirectoryNames];
+	if (selectedName && !names.includes(selectedName)) names.push(selectedName);
+	const options = [new Option('Selecione um aluno cadastrado', '', true, !selectedName)];
+	options[0].disabled = true;
+	options.push(...names.map(name => {
+		const option = document.createElement('option');
+		option.value = name;
+		option.textContent = name;
+		return option;
+	}));
+	$('studentName').replaceChildren(...options);
+	$('studentName').value = selectedName;
+}
+function setStudentDirectoryStatus(message, isError = false) {
+	const status = $('studentNameStatus');
+	status.textContent = message;
+	status.classList.toggle('error', isError);
+}
+function openModal(id = null) { editingId = id; const item = students.find(x => x.id === id); $('modalTitle').textContent = id ? 'Editar cadastro' : 'Novo cadastro'; $('studentDate').value = item?.date || today(); $('studentName').value = item?.name || ''; $('studentReason').value = item?.reason || 'TESTE'; $('studentResult').value = item?.result || 'PENDENTE'; renderStudentNameOptions(item?.name || ''); $('modalBackdrop').classList.remove('hidden'); setTimeout(() => $('studentName').focus(), 50); }
+async function loadStudentDirectoryNames() {
+	if (!studentDirectoryAuth.currentUser) throw new Error('Não há uma sessão ativa no Controle de Alunos.');
+	studentDirectoryNames = [];
+	renderStudentNameOptions();
+	const snapshot = await studentDirectoryCollection.get();
+	studentDirectoryNames = [...new Set(snapshot.docs
+		.map(document => document.data().name)
+		.filter(name => typeof name === 'string' && name.trim())
+		.map(name => name.trim()))]
+		.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+	renderStudentNameOptions();
+	if (!studentDirectoryNames.length) {
+		setStudentDirectoryStatus('A consulta não retornou alunos. Confira se os cadastros estão nesta conta do Controle de Alunos.', true);
+		return;
+	}
+	setStudentDirectoryStatus(`${studentDirectoryNames.length} aluno(s) carregado(s).`);
+}
 function closeModal() { $('modalBackdrop').classList.add('hidden'); }
 function setView(view) { currentView = view; $('recordsView').classList.toggle('hidden', view !== 'records'); $('statsView').classList.toggle('hidden', view !== 'stats'); $('topTitle').textContent = view === 'records' ? 'Alunos' : 'Estatísticas'; document.querySelectorAll('.nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view)); if (view === 'stats') renderStats(); $('sidebar').classList.remove('open'); }
 function populateYearFilter() { const years = [...new Set([new Date().getFullYear(), ...students.map(x => Number(x.date.slice(0, 4)))])].sort((a, b) => b - a); const selectedYear = $('yearFilter').value; $('yearFilter').innerHTML = '<option value="">Todos os anos</option>' + years.map(year => `<option value="${year}">${year}</option>`).join(''); $('yearFilter').value = years.includes(Number(selectedYear)) ? selectedYear : ''; }
@@ -182,7 +230,17 @@ $('loginForm').onsubmit = async event => {
 		return;
 	}
 	try {
-		await firebaseAuth.signInWithEmailAndPassword($('loginEmail').value, $('loginPassword').value);
+		const email = $('loginEmail').value;
+		const password = $('loginPassword').value;
+		await firebaseAuth.signInWithEmailAndPassword(email, password);
+		try {
+			await studentDirectoryAuth.signInWithEmailAndPassword(email, password);
+		} catch (error) {
+			console.error('Erro ao autenticar no Controle de Alunos:', error);
+			await firebaseAuth.signOut();
+			toast('Não foi possível acessar o Controle de Alunos com estas credenciais');
+			return;
+		}
 		await loadRemoteStudents();
 		$('loginView').classList.add('hidden');
 		$('appView').classList.remove('hidden');
@@ -196,7 +254,9 @@ $('loginForm').onsubmit = async event => {
 $('logoutBtn').onclick = async () => {
 	try {
 		await firebaseAuth.signOut();
+		await studentDirectoryAuth.signOut();
 		students = [];
+		studentDirectoryNames = [];
 		save();
 		$('appView').classList.add('hidden');
 		$('loginView').classList.remove('hidden');
@@ -205,7 +265,25 @@ $('logoutBtn').onclick = async () => {
 		toast('Não foi possível encerrar a sessão');
 	}
 };
-$('newBtn').onclick = () => openModal(); $('closeModal').onclick = closeModal; $('cancelModal').onclick = closeModal; $('modalBackdrop').onclick = e => { if (e.target === $('modalBackdrop')) closeModal(); };
+$('newBtn').onclick = async () => {
+	openModal();
+	const nameInput = $('studentName');
+	nameInput.disabled = true;
+	nameInput.options[0].textContent = 'Carregando alunos...';
+	setStudentDirectoryStatus('Buscando alunos no Controle de Alunos...');
+	try {
+		await loadStudentDirectoryNames();
+	} catch (error) {
+		console.error('Erro ao carregar alunos do Controle de Alunos:', error);
+		const reason = error.code || error.message;
+		const message = `Não foi possível carregar a lista de alunos${reason ? ` (${reason})` : ''}.`;
+		setStudentDirectoryStatus(message, true);
+		toast('Falha ao consultar os alunos do Controle de Alunos');
+	} finally {
+		nameInput.disabled = false;
+		renderStudentNameOptions();
+	}
+}; $('closeModal').onclick = closeModal; $('cancelModal').onclick = closeModal; $('modalBackdrop').onclick = e => { if (e.target === $('modalBackdrop')) closeModal(); };
 $('importStudentsBtn').onclick = () => $('studentsCsvInput').click();
 $('studentsCsvInput').onchange = async event => {
 	const [file] = event.target.files;
@@ -229,6 +307,11 @@ $('studentForm').onsubmit = async e => {
 		reason: $('studentReason').value,
 		result: $('studentResult').value
 	};
+	if (!isEditing && !studentDirectoryNames.includes(data.name)) {
+		toast('Selecione um aluno da lista do Controle de Alunos');
+		$('studentName').focus();
+		return;
+	}
 	if (existingStudent && existingStudent.createdAt) data.createdAt = existingStudent.createdAt;
 	try {
 		await saveRemoteStudent(data);
